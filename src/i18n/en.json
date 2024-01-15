@@ -22,7 +22,7 @@
   },
   "update-local": {
     "title": "Import GFADEx metadata",
-    "content": "Once the presvious steps are completed, click the \"Import GFADEx Metadata\" button below. This will import the GFADEx metadata into the DHIS2 instance. This process may take a few minutes to complete. Once the process completes, a summary will display below."
+    "content": "Once the previous steps are completed, click the \"Import GFADEx Metadata\" button below. This will import the GFADEx metadata into the DHIS2 instance. This process may take a few minutes to complete. Once the process completes, a summary will display below."
   },
   "update-metadata-btn": "Update GFADEx metadata",
   "json-upload-success": "GFADEx metadata imported successfully",
