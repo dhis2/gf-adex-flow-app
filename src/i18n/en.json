@@ -47,7 +47,7 @@
   "no-remote-metadata": "No GFADEx reference metadata package found in the datastore. Please upload the GFADEx reference metadata package to the datastore and try again",
   "no-local-gfadex-indicators": "No GFADEx configuration found. Go back to start by importing the GFADEx reference metadata.",
   "upgrade-error": "Error upgrading existing GFADEx metadata. Please try again.",
-  "export-local-package": {
+  "export-local-config": {
     "title": "Export GFADEx configuration",
     "content": "When it is time to move the GFADEx configuration to another DHIS2 instance, click the \"Export GFADEx configuration\" button below. This will export only the configured GFADEx metadata, as well as the data exchange requests, to a JSON file which can be saved locally.  This JSON file is imported into the destination DHIS2 instance. Note that only GFADEx indicators which have been configured in the local DHIS2 instance will be included!",
     "export-btn": "Export GFADEx configuration"
