@@ -8,7 +8,7 @@
     "content": "This app will help manage Global Fund ADEx Metadata. The Global Fund may periodically release new versions of the ADEx metadata package. ADEx administrators can use this app to facilitate upgrading existing GFADex metadata packages to the latest version. Using this app will not affect any existing data or metadata, as it is designed to only work with GFADEx metadata. This app can also be used to export locally configured GFADEx exchange indicators and data exchange configuration to a JSON file which you can then import into another DHIS2 instance."
   },
   "download-package": {
-    "title": "Download the latest package",
+    "title": "Download the latest GFADEx metadata package",
     "content": "Go to GitHub via this link <a href=\"https://github.com/dhis2/gf-adex-metadata/blob/main/exchange_indicators\" target=\"blank\"> and download the latest version</a> of the GFADEx metadata package. Save this file to a local computer."
   },
   "upload-to-datastore": {
