@@ -1195,14 +1195,11 @@ function createIndicatorGroupMap(metadataPackage) {
     return indicatorGroupMap;
 }
 
-function validateReportingCompleteness(metadataPackage, exchanges) {
-    
-    //Create a map of indicator groups to indicators
-    var indicatorGroupMap = createIndicatorGroupMap(metadataPackage);
 
-
-    //Using the exchanges, determine the period type of each indicator within each request
+function getUniquePeriodTypesIndicatorGroupMap(exchanges, indicatorGroupMap) {
     var periodTypesIndicatorGroupMap = [];
+    if (exchanges.length === 0) return [];
+
     for (var ex of exchanges) {
         for (var req of ex.source.requests) {
             for (var ind of req.dx) {
@@ -1216,14 +1213,26 @@ function validateReportingCompleteness(metadataPackage, exchanges) {
         }
     }
 
-    //Remove the duplicated indicator groups/period types
+    // Remove the duplicated indicator groups/period types
     const uniquePeriodTypesIndicatorGroupMap = periodTypesIndicatorGroupMap.filter(
         (periodTypeIndicatorGroup, index, self) =>
-            index ===   self.findIndex((t) => (
+            index === self.findIndex((t) => (
                 t.indicatorGroupID === periodTypeIndicatorGroup.indicatorGroupID && t.periodType === periodTypeIndicatorGroup.periodType
             ))
     );
-    //From reporting_completeness_indicators, find the indicator groups and period types
+
+    return uniquePeriodTypesIndicatorGroupMap;
+}
+
+function validateReportingCompleteness(metadataPackage, exchanges) {
+
+
+    
+    //Create a map of indicator groups to indicators
+    var indicatorGroupMap = createIndicatorGroupMap(metadataPackage);
+    var uniquePeriodTypesIndicatorGroupMap = getUniquePeriodTypesIndicatorGroupMap(exchanges, indicatorGroupMap);
+
+    //Find the indicator groups and period types
     //which are present in the uniquePeriodTypesIndicatorGroupMap
     const reportingCompletenessIndicators = reporting_completeness_indicators.filter(
         (reportingCompletenessIndicator) =>
