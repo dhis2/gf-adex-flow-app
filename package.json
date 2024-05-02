@@ -5,7 +5,7 @@
   "dependencies": {
     "@andreasremdt/simple-translator": "^2.0.4",
     "datatables.net-dt": "^1.13.8",
-    "ejs": "^3.1.9",
+    "ejs": "^3.1.10",
     "jquery": "^3.7.1",
     "jquery-datatables": "^1.10.18",
     "jspdf": "^2.5.1",
