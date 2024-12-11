@@ -14,6 +14,8 @@ window.DataTable = DataTable;
 import * as jspdf from "jspdf";
 window.jspdf = jspdf;
 import "jspdf-autotable";
+import * as semver from "semver";
+window.semver = semver;
 //JS
 
 import { getContextPath } from "./js/utils.js";
@@ -23,6 +25,7 @@ import { upgradeIndicators } from "./js/utils.js";
 import { fetchUserLocale } from "./js/utils.js";
 import { exportLocalIndicators } from "./js/utils.js";
 import { exportLocalConfig } from "./js/utils.js";
+import { exportLocalExchange } from "./js/utils.js";
 import { CurrentDate } from "./components/CurrentDate.js";
 import { HeaderBar } from "./components/HeaderBar.js";
 import { NavigationStrip } from "./components/NavigationStrip.js";
@@ -36,6 +39,8 @@ import { showImportMetadataPackage } from "./views/showImportMetadataPackage.js"
 import { importMetadataPackage } from "./components/ImportMetadataPackage.js";
 import { showValidationReport } from "./views/showValidationReport.js";
 import { runValidation, reportToPDF, configToCSV } from "./components/ValidationReport.js";
+import { updateImplType,patchIndicatorAggregateDataExportCombo  } from "./components/UpdateImplementerType.js";
+import { showUpdateImplType } from "./views/showUpdateImplemeterType.js";
 
 
 
@@ -79,12 +84,16 @@ window.showValidationReport = showValidationReport;
 window.runValidation = runValidation;
 window.reportToPDF = reportToPDF;
 window.configToCSV = configToCSV;
+window.exportLocalExchange = exportLocalExchange;
+window.showUpdateImplType = showUpdateImplType;
+window.updateImplType = updateImplType;
+window.patchIndicatorAggregateDataExportCombo = patchIndicatorAggregateDataExportCombo;
 
 document.addEventListener("DOMContentLoaded", function () {
+
     fetchUserLocale().then((locale) => {
         const availableLanguages = ["en", "fr", "pt", "sv"];
         const defaultLanguage = "en";
-        //If the user locale is not in the tranlsation list, use the default language
         if (!availableLanguages.includes(locale)) {
             console.log("User locale", locale," not found in translation list. Using default language: " + defaultLanguage);
             userLocale = defaultLanguage;
@@ -93,7 +102,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         translator.fetch(availableLanguages, true).then(() => {
-        // -> Translations are ready...
             translator.translatePageTo(userLocale);
         });
     });

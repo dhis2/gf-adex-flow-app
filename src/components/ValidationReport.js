@@ -1,6 +1,6 @@
 
 
-import { d2Fetch, fetchIndicators, fetchIndicatorsFromDataStore } from "../js/utils.js";
+import { d2Fetch, fetchIndicators, fetchIndicatorsFromDataStore, fetchPackageReleaseInfo, fetchRemoteAppVersion, fetchLocalAppVersion, allowed_implementer_types } from "../js/utils.js";
 
 var indicators = false;
 var operands = false;
@@ -13,6 +13,7 @@ var indicatorsUnconf = {};
 var exchanges = false;
 var root_orgunit = false;
 var metadataPackage = false;
+var releaseInfo = false;
 
 const iso3_codes = ["AFG", "ALB", "AGO", "ARM", "AZE", "BGD", "BLR", "BLZ",
     "BEN", "BTN", "BOL", "BWA", "BFA", "BDI", "CPV", "KHM", "CMR", "CAF", "TCD",
@@ -45,96 +46,6 @@ var indicatorpTypes = {
     "YEARLY": []
 };
 
-const allowed_implementer_types = [
-    {
-        "name": "Governmental Organization",
-        "id": "HXEkCx9uasx"
-    },
-    {
-        "name": "United Nations Development Programme",
-        "id": "ddY6CWfWwoX"
-    },
-    {
-        "name": "Local Private Sector",
-        "id": "WqYrHai9gYJ"
-    },
-    {
-        "name": "Other Multilateral Organization",
-        "id": "KuPZumnAA3k"
-    },
-    {
-        "name": "Faith Based Organization",
-        "id": "izUdgJ2ixiI"
-    },
-    {
-        "name": "Ministry of Finance",
-        "id": "ldI7bQZyhIM"
-    },
-    {
-        "name": "Other Entity",
-        "id": "buBCzm4Q9py"
-    },
-    {
-        "name": "Other Governmental Organization",
-        "id": "iCCfsjluy7r"
-    },
-    {
-        "name": "International Private Sector",
-        "id": "S2So8oWX78q"
-    },
-    {
-        "name": "International Faith Based Organization",
-        "id": "jK7wYMb7ZcV"
-    },
-    {
-        "name": "Other Community Sector Entity",
-        "id": "BBHddcb1ZVr"
-    },
-    {
-        "name": "United Nations Organization",
-        "id": "Kg346mmQUxe"
-    },
-    {
-        "name": "International Non-Governmental Organization",
-        "id": "nLQuKoZXttR"
-    },
-    {
-        "name": "Ministry of Health",
-        "id": "DxDJklvqL7Q"
-    },
-    {
-        "name": "NGO/CBO/Academic",
-        "id": "MXeOmeI8Y36"
-    },
-    {
-        "name": "Civil Society Organization",
-        "id": "FKpadYSM48G"
-    },
-    {
-        "name": "Local Faith Based Organization",
-        "id": "yl4h3HuXlfE"
-    },
-    {
-        "name": "Multilateral Organization",
-        "id": "FBS4envxo55"
-    },
-    {
-        "name": "Community led organizations",
-        "id": "pZZmYvr4qBh"
-    },
-    {
-        "name": "Private Sector",
-        "id": "c9sd0PVzL1G"
-    },
-    {
-        "name": "Local Non-Governmental Organization",
-        "id": "VPLzNdhNfmj"
-    },
-    {
-        "name": "Other Organization",
-        "id": "bvKLmM9thFG"
-    }
-];
 
 class ValidationResult {
     constructor(title, instruction, headers) {
@@ -165,135 +76,159 @@ var validationResults = {
     "REQ_IND_DUPLICATED": new RequestsDuplicatedIndicators(),
     "REQ_IND_UNCONF": new RequestsInidicatorsNotConfigured(),
     "REQ_IND_NONGF": {
-        "title": "Requests with other indicators",
-        "instruction": "GF ADEx requests with indicators that are not GF ADEx indicators (i.e. do not have [GFADEX] prefix). Only GF ADEx indicators should be included in requests.",
-        "headers": [{ "title": "Request" }, { "title": "Indicator id" }],
+        "title": "Requests with non-GFADEx indicators",
+        "instruction": "GFADEx requests with indicators that are not GFADEx indicators. Only GFADEx indicators should be included in GFADEx requests. Remove the unknown indicators from the GFADEx requests.",
+        "headers": [{ "title": "Request" }, { "title": "Indicator ID" }],
         "issues": []
     },
     "REQ_PE_MIXED": {
         "title": "Requests with mixed period types",
-        "instruction": "GF ADEx requests with mixed period types, i.e. the periods specified in the 'pe' dimension do not have the same periodicity. This should be changed so that only on period type is included in each request.",
+        "instruction": "GF ADEx requests should not contain periods of different period types. Revise the requests to include only one period type.",
         "headers": [{ "title": "Request" }, { "title": "Request period" }],
         "issues": []
     },
     "REQ_PE_UNKNOWN": {
         "title": "Requests with unsupported period types",
-        "instruction": "GF ADEx requests that include periods other than years, quarters or months, or where the period type could not be determined. Change these to one of the supported types.",
+        "instruction": "GF ADEx requests should only consist of monthly, quarterly, or yearly periods. Revise the requests to include only one of these types.",
         "headers": [{ "title": "Request" }, { "title": "Request period" }],
         "issues": []
     },
     "REQ_IND_PERIOD_CONFLICT": {
-        "title": "Indicators in multiple requests with different period type",
-        "instruction": "GF ADEx indicators can be included in multiple requests in some cases, but only if the requests have the same period type.",
+        "title": "Indicators in multiple requests with different period types",
+        "instruction": "GF ADEx indicators can be may be used in multiple requests, but they should never be used in requests with periods which overlap. Carefully review the requests listed below to ensure that the periods do not overlap with one another.",
         "headers": [{ "title": "Indicator name" }, { "title": "Indicator id" }, { "title": "Request" }],
         "issues": []
     },
     "REQ_PE_RELATIVE": {
         "title": "Requests with non-relative period types",
-        "instruction": "GF ADEx requests that include periods other than relative periods. Change these to one of the supported types.",
+        "instruction": "GF ADEx requests should usually only contain relative periods. Review the affected requests and consider changing the periods to relative periods.",
         "headers": [{ "title": "Request" }, { "title": "Request period" }],
         "issues": []
     },
     "IND_CONF_IGNORED": {
         "title": "Indicators that are configured but not in requests",
-        "instruction": "GF ADEx indicators that have been configured (numerator ≠ 0), but are not included in any GF ADEx requests.",
+        "instruction": "Usually, GF ADEx indicators that have been configured (numerator != 0), should be part of a request. Carefully review all of the listed indicators to ensure that they are not needed in any of the requests. Consider to delete these indicators if they are not needed.",
         "headers": [{ "title": "Indicator name" }, { "title": "Indicator id" }],
         "issues": []
     },
     "IND_DENOM_CHANGED": {
-        "title": "Indicators with modified denominator",
-        "instruction": "GF ADEx indicators where the denominator has been changed from '1'. This should be reviewed, as all GF ADEx indicators should be reported as numbers only.",
+        "title": "GF ADEx indicators with modified denominator",
+        "instruction": "All GF ADEx indicators should have a denominator of '1'. Revise the indicators listed below to ensure that the denominator is set to '1'.",
         "headers": [{ "title": "Indicator name" }, { "title": "Indicator id" }, { "title": "Denominator" }],
         "issues": []
     },
     "IND_DECIMALS_CHANGED": {
-        "title": "Indicators with modified decimals",
-        "instruction": "GF ADEx indicators where the number of decimals has been changed from '0'. This should be reviewed, as all GF ADEx indicators should be reported as whole integers.",
+        "title": "GF ADEx indicators with modified decimals",
+        "instruction": " All GF ADEx indicators should have the number of decimals set to '0'. For each indicator listed, change the \"Decimals in data output\" property of the indicator to '0' using the Maintenance app.",
         "headers": [{ "title": "Indicator name" }, { "title": "Indicator id" }, { "title": "Decimals" }],
         "issues": []
     },
     "IND_IMPLEMENTER_TYPE": {
-        "title": "Indicators with incorrect attribute for implementer type",
-        "instruction": "GF ADEx indicators where the implementer type attribute is not set to a correct value. Consult the documentation for a list of possible values.",
+        "title": "GF ADex Indicators with incorrect implementer type",
+        "instruction": "GF ADEx indicators should be associated with a valid implementer type. For each indicator listed, change the \"Attribute option combination for data export\" to a valid implementer type UID. Consult the documentation for a list of possible values.",
         "headers": [{ "title": "Indicator name" }, { "title": "Indicator id" }, { "title": "Implementer type" }],
         "issues": []
     },
     "EX_PUBLIC_SHARING": {
-        "title": "GF ADEX exchanges should not be publicly shared.",
-        "instruction": "GF ADEx exchanges should not be publicly shared.",
+        "title": "GF ADEX exchanges should not be publicly shared",
+        "instruction": "GF ADEx exchanges should only be shared with specific users or user groups. Remove the public sharing from the exchanges listed below and share them with specific users instead.",
         "headers": [{ "title": "Exchange name" }],
         "issues": []
     },
     "EX_USERGROUP_SHARING": {
-        "title": "GF ADEx exchanges should be shared with user groups.",
-        "instruction": "Provide at least one user group with access to the exchange.",
+        "title": "GF ADEx exchanges should be shared with user groups",
+        "instruction": "GF ADEx exchanges should be shared with user groups who either need access to view them or who have access to actually submit a data exchange. Add user groups with appropriate permissions to the exchanges listed below.",
         "headers": [{ "title": "Exchange name" }],
         "issues": []
     },
     "REQ_OUTPUT_ID_SCHEME": {
         "title": "GF ADEx requests should use the correct attribute output scheme",
-        "instruction": "GF ADEx requests should use the correct attribute output scheme (\"outputIdScheme\": \"attribute:nHzX73VyNun\")",
+        "instruction": "GF ADEx requests should use the correct attribute output scheme specifically (\"outputIdScheme\": \"attribute:nHzX73VyNun\"). Revise the requests listed below to ensure that the output ID scheme is set correctly.",
         "headers": [{ "title": "Request" }, { "title": "Output ID scheme" }],
         "issues": []
     },
     "EX_TARGET_API": {
         "title": "GF ADEx exchanges should use the correct target server.",
-        "instruction": "GF ADEx exchanges should use the correct target server: https://www.adex.theglobalfund.org",
+        "instruction": "GF ADEx exchanges should use the correct target server: https://adex.theglobalfund.org. Note, during testing you should use the UAT server at https://uat.adex.theglobalfund.org. However, once you move your exchange to production, be sure that the target API is set to the correct server.",
         "headers": [{ "title": "Exchange name" }, { "title": "Target API" }],
         "issues": []
     },
     "EX_BASIC_AUTH": {
         "title": "GF ADEx exchanges should not use basic authentication.",
-        "instruction": "GF ADEx exchanges should used a personal access token instead of basic authentication.",
+        "instruction": "GF ADEx exchanges should used a personal access token instead of basic authentication. Remove any basic authentication credentials from the exchanges listed below and replace them with a DHIS2 personal access token.",
         "headers": [{ "title": "Exchange name" }, { "title": "Username" }],
         "issues": []
     },
     "REQ_ROOT_ORGUNIT": {
         "title": "GF ADEx requests should be aggregated to the level 1 organisation unit.",
-        "instruction": "Check to to be sure there is only one organisation unit defined in the ou dimension",
+        "instruction": "Currently, GF ADEx requests should be aggregated to the level 1 organisation unit. Revise the requests listed below to ensure that the organisation unit is set to the level 1 organisation unit (National level).",
         "headers": [{ "title": "Request" }, { "title": "Organisation unit" }],
         "issues": []
     },
     "ORGUNIT_CODE": {
         "title": "The root organisation unit should have a valid ISO3 code as the code or as an attribute",
-        "instruction": "Check to be sure that you have defined either the code or attribute for your country with the correct ISO3 code",
+        "instruction": "Check to be sure that you have defined either the code or attribute for your country with the correct ISO3 code. Consult the GF ADEx documentation for a list of valid ISO3 codes.",
         "headers": [{ "title": "Organisation unit" }, { "title": "Code" }, { "title": "Attribute" }],
         issues: []
     },
     "EX_TARGET_OU_SCHEME": {
         "title": "GF ADEx exchanges should use the correct target organisation unit scheme.",
-        "instruction": "GF ADEX exchanges should use \"CODE\" as the target organisation unit scheme.",
+        "instruction": "GF ADEX exchanges should use \"CODE\" as the target organisation unit scheme. Revise the exchanges listed below and change the target organisation unit scheme to \"CODE\".",
         "headers": [{ "title": "Exchange name" }, { "title": "Target OU scheme" }],
         issues: []
     },
     "EX_TARGET_ID_SCHEME": {
         "title": "GF ADEx exchanges should use the correct target ID scheme.",
-        "instruction": "GF ADEX exchanges should use \"UID\" as the target ID scheme.",
+        "instruction": "GF ADEX exchanges should use \"UID\" as the target ID scheme. Revise the exchanges listed below and change the target ID scheme to \"UID\".",
         "headers": [{ "title": "Exchange name" }, { "title": "Target ID scheme" }],
         issues: []
     },
     "EX_EXIST": {
-        "title": "At least one GF data exchange should exist.",
+        "title": "At least one GF ADEx data exchange should exist",
         "instruction": "At least one aggregate data exchange with a target API URL containing \"globalfund\" should exist.",
         "headers": [{ "title": "Exchange name" }],
         issues: []
     },
     "INDS_EXIST": {
         "title": "At least one GF indicator should exist.",
-        "instruction": "If you have not already imported a GF ADEX metadata package, you should do so now.",
+        "instruction": "If you have not already imported the GF ADEX metadata package, you should do so now.",
         "headers": [{ "title": "Indicator name" }],
         issues: []
     },
     "REFERENCE_METADATA": {
         "title": "The GFADEX reference metadata package should be imported to the datastore.",
-        "instruction": "If you have not already imported a GFADEX metadata package, you should do so now.",
+        "instruction": "If you have not already imported a GFADEX metadata package, you should do so now using the GF ADEx Flow app.",
         "headers": [{ "title": "Message" }],
         issues: []
     },
     "IND_UNKNOWN_IN_REQUESTS": {
         "title": "GFADEX requests should not include indicators that are not in the GFADEX metadata package.",
-        "instruction": "The following indicators are not in the GFADEX metadata package, but are used in GFADEx requests. Unknown GFADEX indicator should not be used in any requests made to the GFADEx API.",
+        "instruction": "Unknown GF ADEX indicator should not be used in any requests made to the GF ADEx server. Remove the unknown indicators from the GF ADEx requests.",
         "headers": [{ "title": "ID" }, { "title": "Indicator name" }],
+        issues: []
+    },
+    "IND_MUTUALLY_EXCLUSIVE_AGE_BANDS": {
+        "title": "Indicators which have defined mutually exclusive age bands.",
+        "instruction": "Certain GF ADex indicators have a category combination with non-mutually exclusive age bands. You should not submit age bands which overlap with one another. For instance, if you submit <5, 5-14, you should not also submit <15 for the same GF ADEx indicator.  You should use either the fine age bands or the coarse age bands, but not both. Please remove the coarse age band if you can map the fine age bands. Review the indicators listed below and ensure that the age bands are mutually exclusive for the same indicator.",
+        "headers": [{ "title": "Indicator name" }],
+        issues: []
+    },
+    "METADATA_PACKAGE_VERSION": {
+        "title": "The GFADEX metadata package should be the latest version.",
+        "instruction": "A new version of the GFADEX metadata package is available. You should import the latest version of the GFADEX metadata package to the datastore. Follow the instructions provided in the GF ADEx Flow app \"Update\" section.",
+        "headers": [{ "title": "Remote version" }, { "title": "Local version" }],
+        issues: []
+    },
+    "APP_VERSION": {
+        "title": "The GFADEX app should be the latest version.",
+        "instruction": "A new version of the GFADEX app is available. You should update the GFADEX app to the latest version. The ADEx Flow app is availble in the DHIS2 App Hub. Open the App Management app and search for \"ADEx Flow\" to install the latest version.",
+        "headers": [{ "title": "Remote version" }, { "title": "Local version" }],
+        issues: []
+    },
+    "SINGLE_IMPLEMENTER_TYPE": {
+        "title": "All GFADEX indicators which are configured should be attributed to a single implementer type.",
+        "instruction": "Review the indicators listed below and ensure that they are all attributed to a single implementer type.",
+        "headers": [  { "title": "Implementer type" }, {"title": "Count of indicators" }],
         issues: []
     }
 };
@@ -672,7 +607,9 @@ function findUserGroupAccess(exchanges, validationResults) {
 function findWrongOutputIDScheme(exchanges, validationResults) {
     for (var ex of exchanges) {
         for (var req of ex.source.requests) {
-            if (req.outputIdScheme != "attribute:nHzX73VyNun") {
+            //Convert attribute to ATTRIBUTE
+            const outputIdScheme = req.outputIdScheme.replace("attribute:", "ATTRIBUTE:");
+            if (outputIdScheme != "ATTRIBUTE:nHzX73VyNun") {
                 validationResults["REQ_OUTPUT_ID_SCHEME"].issues.push([req.name, req.outputIdScheme]);
             }
         }
@@ -820,33 +757,207 @@ function identifyUnknownIndicatorsInRequests(exchanges, indicators, metadataPack
     }
 }
 
-export function reportToPDF() {
+
+function getUniqueImplementerTypes(indicatorsConf) {
+    const implementerTypes = indicatorsConf.map(indicator => indicator.aggregateExportAttributeOptionCombo);
+    const uniqueImplementerTypes = [...new Set(implementerTypes)];
+    //Remape these to readable values with the help of the allowed_implementer_types
+    return uniqueImplementerTypes.map(implType => allowed_implementer_types.find(impl => impl.id === implType).name);
+}
+
+function identifyMutuallyExclusiveAgeBands(indicatorsConf, exchanges) {
+
+    if (indicatorsConf.length === 0) {
+        return;
+    }
+
+    if (exchanges.length === 0) {
+        return;
+    }
+    console.log("Configured indicators",  indicatorsConf);
+    //Filter  configured indicators which exist in the exchanges
+    var exchangeIndicators = [];
+    exchanges.forEach(exchange => {
+        exchangeIndicators = exchangeIndicators.concat(exchange.source.requests.flatMap(request => request.dx));});
+    var indicatorsInExchanges = [];
+    for (var indicator in indicatorsConf) {
+        if (exchangeIndicators.includes(indicator)) {
+            indicatorsInExchanges.push(indicatorsConf[indicator]);
+        }
+    }
+    console.log("Indicators in exchanges", indicatorsInExchanges);
+    if (indicatorsInExchanges.length === 0  || indicatorsInExchanges == undefined) {
+        return;
+    }
+
+    //const indicatorsInExchanges = indicatorsConf;
+    const mutuallyExclusiveAgeBands = [
+        {
+            "dataElement": "kJqLw03R9Ed",
+            "leftSideOptions": ["RPseIh0fIIb", "zbsxVMPLP1M", "X7SDej47sb9", "sF8NGOqMeDj", "SGjUYxKpJa1", "oJ1VU54aHQb"],
+            "rightSideOptions": ["SSYyE93vzp1", "kLmUIk88rZn", "qzta2Ue73Mx"]
+        },
+        {
+            "dataElement": "zahS139rbsw",
+            "leftSideOptions": ["RPseIh0fIIb", "zbsxVMPLP1M", "X7SDej47sb9", "sF8NGOqMeDj", "SGjUYxKpJa1", "oJ1VU54aHQb"],
+            "rightSideOptions": ["SSYyE93vzp1", "kLmUIk88rZn", "qzta2Ue73Mx"]
+        }
+    ];
+
+    mutuallyExclusiveAgeBands.forEach(rule => {
+        //First, filter all indicators which data elements matches
+        const dataElementMatches = indicatorsInExchanges.filter(indicator => indicator.code.includes(rule.dataElement));
+        //Are there any matches?
+        if (dataElementMatches == undefined || dataElementMatches.length === 0) {
+            return;
+        }
+
+        const leftSideMatches = dataElementMatches.filter(indicator => rule.leftSideOptions.some(option => indicator.code.includes(option)));
+        const rightSideMatches = dataElementMatches.filter(indicator => rule.rightSideOptions.some(option => indicator.code.includes(option)));
+
+        if (leftSideMatches.length > 0 && rightSideMatches.length > 0) {
+            leftSideMatches.forEach(indicator => {
+                validationResults["IND_MUTUALLY_EXCLUSIVE_AGE_BANDS"].issues.push([indicator.name]);
+            }
+            );
+            rightSideMatches.forEach(indicator => {
+                validationResults["IND_MUTUALLY_EXCLUSIVE_AGE_BANDS"].issues.push([indicator.name]);
+            }
+            );
+
+            validationResults["IND_MUTUALLY_EXCLUSIVE_AGE_BANDS"].issues = validationResults["IND_MUTUALLY_EXCLUSIVE_AGE_BANDS"].issues.filter((issue, index, self) =>
+                index === self.findIndex((t) => (
+                    t[0] === issue[0]
+                ))
+            );
+        }
+    });
+
+
+
+}
+
+/*global semver */
+function checkMetadataPackageVersion(releaseInfo, localPackage) {
+
+    const localVersion = localPackage.package[0].version;
+    if (!semver.valid(localVersion)) {
+        console.log("Local version is not valid semver: ", localVersion);
+        return false;
+    }
+
+    const remoteVersion = releaseInfo.tag_name;
+
+    if (!semver.valid(remoteVersion)) {
+        console.log("Remote version is not valid semver: ", remoteVersion);
+        return false;
+    }
+
+    if (!semver.eq(remoteVersion, localVersion)) {
+        validationResults["METADATA_PACKAGE_VERSION"].issues.push([remoteVersion, localVersion]);
+    }
+}
+
+function checkAppVersion(remoteAppVersion, localAppVersion) {
+    if (!semver.valid(localAppVersion)) {
+        console.log("Local version is not valid semver: ", localAppVersion);
+        localAppVersion = "0.0.0";
+    }
+
+    if (!semver.valid(remoteAppVersion)) {
+        console.log("Remote version is not valid semver: ", remoteAppVersion);
+        return false;
+    }
+    if (!semver.eq(remoteAppVersion, localAppVersion)) {
+        validationResults["APP_VERSION"].issues.push([remoteAppVersion, localAppVersion]);
+    }
+
+
+}
+
+function checkSingleImplementerType(indicatorsConf) {
+    const indicatorImplementerTypeMap = {};
+
+    for (const key in indicatorsConf) {
+        if (Object.prototype.hasOwnProperty.call(indicatorsConf, key)) {
+            const indicator = indicatorsConf[key];
+            indicatorImplementerTypeMap[key] = indicator.aggregateExportAttributeOptionCombo;
+            const implementerType = allowed_implementer_types.find(impl => impl.id === indicator.aggregateExportAttributeOptionCombo).name;
+            indicatorImplementerTypeMap[key] = { "name": indicator.name, "implementerType": implementerType };
+        }
+    }
+
+    //Count the implementer types
+    const implementerTypeCounts = {};
+    for (const key in indicatorImplementerTypeMap) {
+        if (Object.prototype.hasOwnProperty.call(indicatorImplementerTypeMap, key)) {
+            const indicator = indicatorImplementerTypeMap[key];
+            if (Object.prototype.hasOwnProperty.call(implementerTypeCounts, indicator.implementerType)) {
+                implementerTypeCounts[indicator.implementerType] += 1;
+            } else {
+                implementerTypeCounts[indicator.implementerType] = 1;
+            }
+        }
+    }
+    if (Object.keys(implementerTypeCounts).length > 1) {
+        for (const key in implementerTypeCounts) {
+            if (Object.prototype.hasOwnProperty.call(implementerTypeCounts, key)) {
+                validationResults["SINGLE_IMPLEMENTER_TYPE"].issues.push([key, implementerTypeCounts[key]]);
+            }
+        }
+    }
+
+}
+
+export async function reportToPDF() {
 
     const { jsPDF } = window.jspdf;
     var doc = new jsPDF("portrait");
     const current_time = new Date().toJSON();
+    //Need to resolve the promise first since it's async
+    const localAppVersion = await fetchLocalAppVersion();
+    console.log("Local app version", localAppVersion);
     doc.text("ADEX Validation Report", 20, 20);
     doc.text("Hostname: " + systemInfo.contextPath, 20, 30);
     doc.text("DHIS2 Version: " + systemInfo.version, 20, 40);
     doc.text("Revision:" + systemInfo.revision, 20, 50);
-    doc.text("Generated on: " + current_time, 20, 60);
+    const metadataPackageVersion = metadataPackageIsPresent(metadataPackage) ? metadataPackage.package[0].version : "UNKNOWN";
+    doc.text("Package version: " + metadataPackageVersion, 20, 60);
+    doc.text("App version: " + localAppVersion, 20, 70);
+    doc.text("Generated on: " + current_time, 20, 80);
+    doc.text("Country: " + root_orgunit.name, 20, 90);
+    doc.text("Implementer types: " + getUniqueImplementerTypes(updatedIndicators).join(", "), 20, 100);
     doc.addPage();
     doc.page = 1;
     for (var validationType in validationResults) {
         var result = validationResults[validationType];
         if (result.issues.length > 0) {
-            doc.text(result.title, 10, 10);
+            var y = 30;
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            const issueTitle = "Issue: " + result.title;
+            doc.text(issueTitle, 15, y, { maxWidth: 180 });
+            var titleRows = Math.ceil(result.title.length / 180);
+            titleRows > 1 ? y += titleRows * 15 : y += 10;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(12);
+            const instructionText = result.instruction;
+            doc.text(instructionText, 15, y, { maxWidth: 180});
+            var instructionRows = Math.ceil(instructionText.length / 180);
+            instructionRows > 1 ? y += instructionRows * 10 : y += 10;
             doc.autoTable({
                 head: [result.headers.map(header => header.title)],
                 body: result.issues,
-                startY: 30
+                startY: y
             });
             doc.addPage();
+        }
+        else {
+            doc.text("No issues found", 10, 10);
         }
     }
     addFooters(doc);
     doc.save("gf_adex_validation.pdf");
-
 }
 
 function indicatorNumeratorExpressionDescription(id) {
@@ -858,20 +969,26 @@ function indicatorNumeratorExpressionDescription(id) {
 
 export function configToCSV() {
     var csv_data = [];
-    csv_data.push("\"UID\",\"Code\",\"Short Name\",\"Indicator name\",\"Period type\",\"Numerator\"");
-    for (var pType in indicatorpTypes) {
-        for (var indicator in indicatorpTypes[pType]) {
-            let csvrow = [];
-            let indicatorId = indicatorpTypes[pType][indicator];
-            csvrow.push("\"" + indicatorId + "\"");
-            csvrow.push("\"" + getIndicatorAttributeFromID(indicatorId, "code", indicators) + "\"");
-            csvrow.push("\"" + getIndicatorAttributeFromID(indicatorId, "shortName", indicators) + "\"");
-            csvrow.push("\"" + getIndicatorAttributeFromID(indicatorId, "name", indicators) + "\"");
-            csvrow.push("\"" + pType + "\"");
-            csvrow.push("\"" + indicatorNumeratorExpressionDescription(indicatorId) + "\"");
-            csv_data.push(csvrow.join(","));
+    csv_data.push("\"ex_uid\",\"exchange_name\",\"request_name\",\"Code\",\"Short Name\",\"Indicator name\",\"Period type\",\"Numerator\", \"Implementer type\"");
+
+    for (var ex of exchanges) {
+        for (var req of ex.source.requests) {
+            var periodType = classifyPeriods(req.pe);
+            for (var ind of req.dx) {
+                let csvrow = [];
+                csvrow.push("\"" + ex.id + "\"");
+                csvrow.push("\"" + ex.name + "\"");
+                csvrow.push("\"" + req.name + "\"");
+                csvrow.push("\"" + getIndicatorAttributeFromID(ind, "code", indicators) + "\"");
+                csvrow.push("\"" + getIndicatorAttributeFromID(ind, "shortName", indicators) + "\"");
+                csvrow.push("\"" + getIndicatorAttributeFromID(ind, "name", indicators) + "\"");
+                csvrow.push("\"" + periodType + "\"");
+                csvrow.push("\"" + indicatorNumeratorExpressionDescription(ind) + "\"");
+                csv_data.push(csvrow.join(","));
+            }
         }
     }
+
     csv_data = csv_data.join("\n");
     downloadCSVFile(csv_data);
 }
@@ -938,6 +1055,11 @@ function replaceFormulasWithShortNames(indicators, operands, dataElements, dataS
     return indicators;
 }
 
+function metadataPackageIsPresent(metadataPackage) {
+    //Does the package key exist?
+    return metadataPackage?.package != undefined;
+}
+
 export async function runValidation() {
     //TODO: Fix this
     $("#validation-result").empty();
@@ -953,62 +1075,77 @@ export async function runValidation() {
     dataElements = await fetchDataElements();
     dataSets = await fetchDataSets();
     metadataPackage = await fetchIndicatorsFromDataStore();
+    releaseInfo = await fetchPackageReleaseInfo();
 
-    Promise.all([systemInfo, exchanges, root_orgunit, indicators, operands, dataElements, dataSets, metadataPackage])
+    const remoteAppVersion = await fetchRemoteAppVersion();
+    const localAppVersion = await fetchLocalAppVersion();
+    checkAppVersion(remoteAppVersion, localAppVersion);
+
+    Promise.all([systemInfo, exchanges, root_orgunit, indicators, operands, dataElements, dataSets, metadataPackage, releaseInfo])
         .then(console.log("Fetched metadata."))
         .catch((err) => {
             console.log(err);
             return false;
         });
 
-    updatedIndicators = replaceFormulasWithShortNames(indicators, operands, dataElements, dataSets);
+    const metadataPackagePresent = metadataPackageIsPresent(metadataPackage);
+    if (metadataPackagePresent) {
 
-    //Categorize the indicators
-    const classifiedIndicators = indicatorsCategorize(indicators);
-    indicatorsConf = classifiedIndicators.indicatorsConf;
-    indicatorsUnconf = classifiedIndicators.indicatorsUnconf;
+        checkMetadataPackageVersion(releaseInfo, metadataPackage);
+        updatedIndicators = replaceFormulasWithShortNames(indicators, operands, dataElements, dataSets);
 
-    //Empty all of the "issues": [] arrays prior to a new validation run
-    for (var validationType in validationResults) {
-        validationResults[validationType].issues = [];
-    }
+        //Categorize the indicators
+        const classifiedIndicators = indicatorsCategorize(indicators);
+        indicatorsConf = classifiedIndicators.indicatorsConf;
+        indicatorsUnconf = classifiedIndicators.indicatorsUnconf;
 
-    //If we do not have any exchanges, then we cannot check these
-    if (exchanges.length > 0) {
-        findDuplicatesInRequests(exchanges, validationResults);
-        findUnconfiguredInRequests(exchanges, indicatorsUnconf, validationResults);
-        findConfiguredNotInRequests(exchanges, indicatorsConf, validationResults);
-        findNonAdexIndicatorsInRequests(exchanges, indicatorsUnconf, indicatorsConf, validationResults);
-        findPublicAccess(exchanges, validationResults);
-        findUserGroupAccess(exchanges, validationResults);
-        findRequestPeriodInoncistenies(exchanges, indicators, indicatorpTypes, validationResults);
-        findNonRelativePeriods(exchanges, validationResults);
-        findWrongOutputIDScheme(exchanges, validationResults);
-        findTargetAPI(exchanges, validationResults);
-        findBasicAuth(exchanges, validationResults);
-        validateRootOrgUnit(root_orgunit, exchanges, validationResults);
-        validateExchangeTargetOuScheme(exchanges, validationResults);
-        checkTargetOutputIdScheme(exchanges, validationResults);
-        identifyUnknownIndicatorsInRequests(exchanges, indicators, metadataPackage);
+        //Empty all of the "issues": [] arrays prior to a new validation run
+        for (var validationType in validationResults) {
+            validationResults[validationType].issues = [];
+        }
+
+        //If we do not have any exchanges, then we cannot check these
+        if (exchanges.length > 0) {
+            findDuplicatesInRequests(exchanges, validationResults);
+            findUnconfiguredInRequests(exchanges, indicatorsUnconf, validationResults);
+            findConfiguredNotInRequests(exchanges, indicatorsConf, validationResults);
+            findNonAdexIndicatorsInRequests(exchanges, indicatorsUnconf, indicatorsConf, validationResults);
+            findPublicAccess(exchanges, validationResults);
+            findUserGroupAccess(exchanges, validationResults);
+            findRequestPeriodInoncistenies(exchanges, indicators, indicatorpTypes, validationResults);
+            findNonRelativePeriods(exchanges, validationResults);
+            findWrongOutputIDScheme(exchanges, validationResults);
+            findTargetAPI(exchanges, validationResults);
+            findBasicAuth(exchanges, validationResults);
+            validateRootOrgUnit(root_orgunit, exchanges, validationResults);
+            validateExchangeTargetOuScheme(exchanges, validationResults);
+            checkTargetOutputIdScheme(exchanges, validationResults);
+            identifyUnknownIndicatorsInRequests(exchanges, indicators, metadataPackage);
+            identifyMutuallyExclusiveAgeBands(indicatorsConf, exchanges);
+            checkSingleImplementerType(indicatorsConf);
+        } else {
+            validationResults["EX_EXIST"].issues.push(["No exchanges found"]);
+        }
+
+        if (indicators.length > 0) {
+            findChangedDenominators(indicators, validationResults);
+            findChangedDecimals(indicators, validationResults);
+            findInvalidImplementerTypes(indicators, validationResults);
+        } else {
+            validationResults["INDS_EXIST"].issues.push(["No GF ADEX indicators found"]);
+        }
+
+        validateOrgUnitCode(root_orgunit, validationResults);
+        validateReferenceMetadata(metadataPackage);
+
+        $("#loading").hide();
+        $("#download-summary-csv").prop("disabled", false);
+        $("#download-report-pdf").prop("disabled", false);
+        printValidationResults(validationResults);
     } else {
-        validationResults["EX_EXIST"].issues.push(["No exchanges found"]);
+        $("#loading").hide();
+        alert("The GFADEX metadata package is not present. Please import the GFADEX package into the datastore first!");
     }
-
-    if (indicators.length > 0) {
-        findChangedDenominators(indicators, validationResults);
-        findChangedDecimals(indicators, validationResults);
-        findInvalidImplementerTypes(indicators, validationResults);
-    } else {
-        validationResults["INDS_EXIST"].issues.push(["No GF ADEX indicators found"]);
-    }
-
-    validateOrgUnitCode(root_orgunit, validationResults);
-    validateReferenceMetadata(metadataPackage);
-
-    $("#loading").hide();
-    $("#download-summary-csv").prop("disabled", false);
-    $("#download-report-pdf").prop("disabled", false);
-    printValidationResults(validationResults);
 
 }
 
@@ -1039,7 +1176,7 @@ export class ValidationReport extends HTMLElement {
            <img alt=""
                src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8c3ZnIHdpZHRoPSI0MHB4IiBoZWlnaHQ9IjQwcHgiIHZpZXdCb3g9IjAgMCA0MCA0MCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4bWw6c3BhY2U9InByZXNlcnZlIiBzdHlsZT0iZmlsbC1ydWxlOmV2ZW5vZGQ7Y2xpcC1ydWxlOmV2ZW5vZGQ7c3Ryb2tlLWxpbmVqb2luOnJvdW5kO3N0cm9rZS1taXRlcmxpbWl0OjEuNDE0MjE7IiB4PSIwcHgiIHk9IjBweCI+CiAgICA8ZGVmcz4KICAgICAgICA8c3R5bGUgdHlwZT0idGV4dC9jc3MiPjwhW0NEQVRBWwogICAgICAgICAgICBALXdlYmtpdC1rZXlmcmFtZXMgc3BpbiB7CiAgICAgICAgICAgICAgZnJvbSB7CiAgICAgICAgICAgICAgICAtd2Via2l0LXRyYW5zZm9ybTogcm90YXRlKDBkZWcpCiAgICAgICAgICAgICAgfQogICAgICAgICAgICAgIHRvIHsKICAgICAgICAgICAgICAgIC13ZWJraXQtdHJhbnNmb3JtOiByb3RhdGUoLTM1OWRlZykKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgICAgQGtleWZyYW1lcyBzcGluIHsKICAgICAgICAgICAgICBmcm9tIHsKICAgICAgICAgICAgICAgIHRyYW5zZm9ybTogcm90YXRlKDBkZWcpCiAgICAgICAgICAgICAgfQogICAgICAgICAgICAgIHRvIHsKICAgICAgICAgICAgICAgIHRyYW5zZm9ybTogcm90YXRlKC0zNTlkZWcpCiAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICAgIHN2ZyB7CiAgICAgICAgICAgICAgICAtd2Via2l0LXRyYW5zZm9ybS1vcmlnaW46IDUwJSA1MCU7CiAgICAgICAgICAgICAgICAtd2Via2l0LWFuaW1hdGlvbjogc3BpbiAxLjVzIGxpbmVhciBpbmZpbml0ZTsKICAgICAgICAgICAgICAgIC13ZWJraXQtYmFja2ZhY2UtdmlzaWJpbGl0eTogaGlkZGVuOwogICAgICAgICAgICAgICAgYW5pbWF0aW9uOiBzcGluIDEuNXMgbGluZWFyIGluZmluaXRlOwogICAgICAgICAgICB9CiAgICAgICAgXV0+PC9zdHlsZT4KICAgIDwvZGVmcz4KICAgIDxnIGlkPSJvdXRlciI+CiAgICAgICAgPGc+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik0yMCwwQzIyLjIwNTgsMCAyMy45OTM5LDEuNzg4MTMgMjMuOTkzOSwzLjk5MzlDMjMuOTkzOSw2LjE5OTY4IDIyLjIwNTgsNy45ODc4MSAyMCw3Ljk4NzgxQzE3Ljc5NDIsNy45ODc4MSAxNi4wMDYxLDYuMTk5NjggMTYuMDA2MSwzLjk5MzlDMTYuMDA2MSwxLjc4ODEzIDE3Ljc5NDIsMCAyMCwwWiIgc3R5bGU9ImZpbGw6YmxhY2s7Ii8+CiAgICAgICAgPC9nPgogICAgICAgIDxnPgogICAgICAgICAgICA8cGF0aCBkPSJNNS44NTc4Niw1Ljg1Nzg2QzcuNDE3NTgsNC4yOTgxNSA5Ljk0NjM4LDQuMjk4MTUgMTEuNTA2MSw1Ljg1Nzg2QzEzLjA2NTgsNy40MTc1OCAxMy4wNjU4LDkuOTQ2MzggMTEuNTA2MSwxMS41MDYxQzkuOTQ2MzgsMTMuMDY1OCA3LjQxNzU4LDEzLjA2NTggNS44NTc4NiwxMS41MDYxQzQuMjk4MTUsOS45NDYzOCA0LjI5ODE1LDcuNDE3NTggNS44NTc4Niw1Ljg1Nzg2WiIgc3R5bGU9ImZpbGw6cmdiKDIxMCwyMTAsMjEwKTsiLz4KICAgICAgICA8L2c+CiAgICAgICAgPGc+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik0yMCwzMi4wMTIyQzIyLjIwNTgsMzIuMDEyMiAyMy45OTM5LDMzLjgwMDMgMjMuOTkzOSwzNi4wMDYxQzIzLjk5MzksMzguMjExOSAyMi4yMDU4LDQwIDIwLDQwQzE3Ljc5NDIsNDAgMTYuMDA2MSwzOC4yMTE5IDE2LjAwNjEsMzYuMDA2MUMxNi4wMDYxLDMzLjgwMDMgMTcuNzk0MiwzMi4wMTIyIDIwLDMyLjAxMjJaIiBzdHlsZT0iZmlsbDpyZ2IoMTMwLDEzMCwxMzApOyIvPgogICAgICAgIDwvZz4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHBhdGggZD0iTTI4LjQ5MzksMjguNDkzOUMzMC4wNTM2LDI2LjkzNDIgMzIuNTgyNCwyNi45MzQyIDM0LjE0MjEsMjguNDkzOUMzNS43MDE5LDMwLjA1MzYgMzUuNzAxOSwzMi41ODI0IDM0LjE0MjEsMzQuMTQyMUMzMi41ODI0LDM1LjcwMTkgMzAuMDUzNiwzNS43MDE5IDI4LjQ5MzksMzQuMTQyMUMyNi45MzQyLDMyLjU4MjQgMjYuOTM0MiwzMC4wNTM2IDI4LjQ5MzksMjguNDkzOVoiIHN0eWxlPSJmaWxsOnJnYigxMDEsMTAxLDEwMSk7Ii8+CiAgICAgICAgPC9nPgogICAgICAgIDxnPgogICAgICAgICAgICA8cGF0aCBkPSJNMy45OTM5LDE2LjAwNjFDNi4xOTk2OCwxNi4wMDYxIDcuOTg3ODEsMTcuNzk0MiA3Ljk4NzgxLDIwQzcuOTg3ODEsMjIuMjA1OCA2LjE5OTY4LDIzLjk5MzkgMy45OTM5LDIzLjk5MzlDMS43ODgxMywyMy45OTM5IDAsMjIuMjA1OCAwLDIwQzAsMTcuNzk0MiAxLjc4ODEzLDE2LjAwNjEgMy45OTM5LDE2LjAwNjFaIiBzdHlsZT0iZmlsbDpyZ2IoMTg3LDE4NywxODcpOyIvPgogICAgICAgIDwvZz4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHBhdGggZD0iTTUuODU3ODYsMjguNDkzOUM3LjQxNzU4LDI2LjkzNDIgOS45NDYzOCwyNi45MzQyIDExLjUwNjEsMjguNDkzOUMxMy4wNjU4LDMwLjA1MzYgMTMuMDY1OCwzMi41ODI0IDExLjUwNjEsMzQuMTQyMUM5Ljk0NjM4LDM1LjcwMTkgNy40MTc1OCwzNS43MDE5IDUuODU3ODYsMzQuMTQyMUM0LjI5ODE1LDMyLjU4MjQgNC4yOTgxNSwzMC4wNTM2IDUuODU3ODYsMjguNDkzOVoiIHN0eWxlPSJmaWxsOnJnYigxNjQsMTY0LDE2NCk7Ii8+CiAgICAgICAgPC9nPgogICAgICAgIDxnPgogICAgICAgICAgICA8cGF0aCBkPSJNMzYuMDA2MSwxNi4wMDYxQzM4LjIxMTksMTYuMDA2MSA0MCwxNy43OTQyIDQwLDIwQzQwLDIyLjIwNTggMzguMjExOSwyMy45OTM5IDM2LjAwNjEsMjMuOTkzOUMzMy44MDAzLDIzLjk5MzkgMzIuMDEyMiwyMi4yMDU4IDMyLjAxMjIsMjBDMzIuMDEyMiwxNy43OTQyIDMzLjgwMDMsMTYuMDA2MSAzNi4wMDYxLDE2LjAwNjFaIiBzdHlsZT0iZmlsbDpyZ2IoNzQsNzQsNzQpOyIvPgogICAgICAgIDwvZz4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHBhdGggZD0iTTI4LjQ5MzksNS44NTc4NkMzMC4wNTM2LDQuMjk4MTUgMzIuNTgyNCw0LjI5ODE1IDM0LjE0MjEsNS44NTc4NkMzNS43MDE5LDcuNDE3NTggMzUuNzAxOSw5Ljk0NjM4IDM0LjE0MjEsMTEuNTA2MUMzMi41ODI0LDEzLjA2NTggMzAuMDUzNiwxMy4wNjU4IDI4LjQ5MzksMTEuNTA2MUMyNi45MzQyLDkuOTQ2MzggMjYuOTM0Miw3LjQxNzU4IDI4LjQ5MzksNS44NTc4NloiIHN0eWxlPSJmaWxsOnJnYig1MCw1MCw1MCk7Ii8+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4K" />
            </div>
-            <div id="validation-result" width="100%"></div>
+           <div id="validation-result" width="100%"></div>
             `;
     }
 }
