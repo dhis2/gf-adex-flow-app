@@ -89,7 +89,7 @@ const webpackConfig = {
         proxy: {
             "/api/*": {
               "target": "http://localhost:8080/dhis",
-              "auth": "demo_en:District1#"
+              "auth": "admin:district"
             }
           }
     },
