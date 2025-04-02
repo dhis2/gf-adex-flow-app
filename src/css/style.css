@@ -3,6 +3,13 @@ body {
 }
 
 .headerBar {
+	display: none;
+	height: 0px;
+	overflow: hidden;
+	position: absolute;
+}
+
+.standalone .headerBar {
 	display: flex;
 	align-items: center;
 	height: 47px;
@@ -13,6 +20,32 @@ body {
 	position: fixed;
 	top: 0px;
 	left: 0px;
+}
+.navigationStrip {
+	display: flex;
+	position: fixed;
+	background: rgb(228, 228, 228);
+	width: 100%; 
+	z-index: 10; 
+	top: 0px; 
+	flex: 1 1 0%; 
+	height: 40px;
+}
+
+.standalone .navigationStrip {
+	top: 50px;
+}
+
+#appContent {
+	position: fixed;
+	top: 40px;
+	overflow: visible;
+	overflow-y: auto; 
+	height: 95%;
+}
+
+.standalone #appContent {
+	top: 80px;
 }
 
 .headerBarLogoBoxContainer {
