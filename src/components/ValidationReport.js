@@ -259,7 +259,7 @@ async function fetchRootOrgUnit() {
 
 //Get the data element operands to substitute in the indicator formulas
 async function fetchDataElementOperands() {
-    const data = await d2Fetch("dataElementOperands.json?fields=id,shortName,dimensionItem&paging=false");
+    const data = await d2Fetch("dataElementOperands.json?fields=id,name,dimensionItem&paging=false");
     if (!data || data.dataElementOperands.length === 0) {
         console.log("No data element operands could be found.");
         return false;
