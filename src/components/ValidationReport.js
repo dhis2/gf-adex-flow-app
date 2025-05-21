@@ -259,7 +259,7 @@ async function fetchRootOrgUnit() {
 
 //Get the data element operands to substitute in the indicator formulas
 async function fetchDataElementOperands() {
-    const data = await d2Fetch("dataElementOperands.json?fields=id,shortName,dimensionItem&paging=false");
+    const data = await d2Fetch("dataElementOperands.json?fields=id,name,shortName,dimensionItem&paging=false");
     if (!data || data.dataElementOperands.length === 0) {
         console.log("No data element operands could be found.");
         return false;
@@ -271,7 +271,7 @@ async function fetchDataElementOperands() {
 
 //Get the data elements when used directly in formulas
 async function fetchDataElements() {
-    const data = await d2Fetch("dataElements.json?fields=id,shortName&paging=false");
+    const data = await d2Fetch("dataElements.json?fields=id,name,shortName&paging=false");
     if (!data || data.dataElements.length === 0) {
         console.log("No data elements could be found.");
         return false;
@@ -1011,12 +1011,12 @@ function replaceFormulasWithShortNames(indicators, operands, dataElements, dataS
     const totalsMap = {};
 
     dataElements.dataElements.forEach(dataElement => {
-        totalsMap[dataElement.id] = dataElement.shortName;
+        totalsMap[dataElement.id] = dataElement.name;
     });
 
     const detailsMap = {};
     operands.dataElementOperands.forEach(operand => {
-        detailsMap[operand.dimensionItem] = operand.shortName;
+        detailsMap[operand.dimensionItem] = operand.name;
     });
 
     const dataSetMap = {};
